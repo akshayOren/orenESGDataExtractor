@@ -1,0 +1,1349 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "esg_extraction_schema_v1",
+    "title": "ESG Sustainability Data Extraction Schema",
+    "description": "Defines all fields the LLM extraction pipeline should extract from sustainability/ESG reports. Designed to be framework-agnostic (covers GRI, TCFD, CSRD/ESRS, SASB, CDP, ISSB) while mapping each KPI back to its source framework(s). This schema is the contract between the PDF parser (Phase 2) and the LLM extractor (Phase 3).",
+    "version": "2.0.0",
+    "type": "object",
+    "required": [
+        "report_metadata",
+        "environmental",
+        "social",
+        "governance",
+        "supply_chain"
+    ],
+    "properties": {
+        "report_metadata": {
+            "description": "Identifies the report itself — who, when, what framework",
+            "type": "object",
+            "required": [
+                "company_name",
+                "reporting_year"
+            ],
+            "properties": {
+                "company_name": {
+                    "type": "string",
+                    "description": "Legal or trading name of the reporting entity"
+                },
+                "company_aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Other names, ticker symbols, parent company"
+                },
+                "country": {
+                    "type": "string",
+                    "description": "Country of headquarters / primary operations"
+                },
+                "industry_sector": {
+                    "type": "string",
+                    "description": "Industry sector (e.g., Energy, Financial Services, Manufacturing)"
+                },
+                "reporting_year": {
+                    "type": "integer",
+                    "description": "Fiscal year the data covers (e.g., 2024)"
+                },
+                "reporting_period": {
+                    "type": "object",
+                    "properties": {
+                        "start_date": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "Start of reporting period (YYYY-MM-DD)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "format": "date",
+                            "description": "End of reporting period (YYYY-MM-DD)"
+                        }
+                    }
+                },
+                "report_title": {
+                    "type": "string",
+                    "description": "Full title of the published report"
+                },
+                "frameworks_used": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "GRI",
+                            "TCFD",
+                            "CSRD_ESRS",
+                            "SASB",
+                            "CDP",
+                            "ISSB_IFRS",
+                            "SDG",
+                            "GHG_Protocol",
+                            "TNFD",
+                            "UN_Global_Compact",
+                            "ADX_ESG",
+                            "Other"
+                        ]
+                    },
+                    "description": "Reporting frameworks/standards the report claims alignment with"
+                },
+                "assurance_level": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "limited",
+                        "reasonable",
+                        "unknown"
+                    ],
+                    "description": "Level of external assurance on ESG data"
+                },
+                "assurance_provider": {
+                    "type": "string",
+                    "description": "Name of the assurance/audit firm"
+                },
+                "currency": {
+                    "type": "string",
+                    "description": "Currency used for financial figures (ISO 4217, e.g., USD, EUR)"
+                },
+                "revenue": {
+                    "type": "number",
+                    "description": "Annual revenue (used for intensity calculations)"
+                },
+                "revenue_unit": {
+                    "type": "string",
+                    "description": "Unit for revenue (e.g., million USD, billion EUR)"
+                },
+                "employee_count": {
+                    "type": "integer",
+                    "description": "Total headcount at reporting year end"
+                },
+                "scope_3_categories_covered": {
+                    "type": "array",
+                    "description": "Which Scope 3 categories (1-15 per GHG Protocol) the report covers",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "category_number": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 15
+                            },
+                            "category_name": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "environmental": {
+            "description": "All environmental KPIs — emissions, energy, water, waste, biodiversity",
+            "type": "object",
+            "properties": {
+                "ghg_emissions": {
+                    "description": "Greenhouse gas emissions (GRI 305, ESRS E1, IFRS S2, CDP, GHG Protocol)",
+                    "type": "object",
+                    "properties": {
+                        "scope_1": {
+                            "description": "Direct GHG emissions from owned/controlled sources",
+                            "type": "object",
+                            "properties": {
+                                "total": {
+                                    "$ref": "#/$defs/metric_value"
+                                },
+                                "percentage_of_total": {
+                                    "type": "number",
+                                    "description": "Scope 1 as % of total emissions"
+                                },
+                                "by_gas": {
+                                    "description": "Breakdown by gas type (CO2, CH4, N2O, HFCs, etc.)",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "gas": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "$ref": "#/$defs/metric_value"
+                                            }
+                                        }
+                                    }
+                                },
+                                "biogenic_co2": {
+                                    "$ref": "#/$defs/metric_value"
+                                }
+                            }
+                        },
+                        "scope_2": {
+                            "description": "Indirect GHG emissions from purchased energy",
+                            "type": "object",
+                            "properties": {
+                                "location_based": {
+                                    "$ref": "#/$defs/metric_value"
+                                },
+                                "market_based": {
+                                    "$ref": "#/$defs/metric_value"
+                                },
+                                "methodology": {
+                                    "type": "string",
+                                    "description": "Whether location-based or market-based approach was used"
+                                },
+                                "percentage_of_total": {
+                                    "type": "number",
+                                    "description": "Scope 2 as % of total emissions"
+                                }
+                            }
+                        },
+                        "scope_3": {
+                            "description": "Other indirect GHG emissions across the value chain",
+                            "type": "object",
+                            "properties": {
+                                "total": {
+                                    "$ref": "#/$defs/metric_value"
+                                },
+                                "percentage_of_total": {
+                                    "type": "number",
+                                    "description": "Scope 3 as % of total emissions"
+                                },
+                                "categories": {
+                                    "description": "Scope 3 by GHG Protocol category (1-15)",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "category_number": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 15
+                                            },
+                                            "category_name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "$ref": "#/$defs/metric_value"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "total_emissions": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "emission_intensity": {
+                            "description": "Emissions per unit of revenue or production",
+                            "type": "object",
+                            "properties": {
+                                "value": {
+                                    "type": "number"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "description": "e.g., tCO2e/M$ revenue, kgCO2e/unit"
+                                },
+                                "denominator": {
+                                    "type": "string",
+                                    "description": "What the intensity is divided by"
+                                }
+                            }
+                        },
+                        "reduction_targets": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "target_description": {
+                                        "type": "string"
+                                    },
+                                    "target_year": {
+                                        "type": "integer"
+                                    },
+                                    "base_year": {
+                                        "type": "integer"
+                                    },
+                                    "reduction_pct": {
+                                        "type": "number"
+                                    },
+                                    "scope_covered": {
+                                        "type": "string"
+                                    },
+                                    "sbti_validated": {
+                                        "type": "boolean",
+                                        "description": "Validated by Science Based Targets initiative"
+                                    }
+                                }
+                            }
+                        },
+                        "methodology_notes": {
+                            "type": "string",
+                            "description": "GHG accounting methodology, emission factors used"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 305",
+                                "ESRS E1",
+                                "IFRS S2",
+                                "CDP CC",
+                                "GHG Protocol"
+                            ]
+                        }
+                    }
+                },
+                "energy": {
+                    "description": "Energy consumption and mix (GRI 302, ESRS E1)",
+                    "type": "object",
+                    "properties": {
+                        "total_consumption": {
+                            "type": "object",
+                            "description": "Total energy consumption (GRI 302-1)",
+                            "properties": {
+                                "within_org": {
+                                    "$ref": "#/$defs/metric_value",
+                                    "description": "Energy consumed within the organization"
+                                },
+                                "outside_org": {
+                                    "$ref": "#/$defs/metric_value",
+                                    "description": "Energy consumed outside the organization"
+                                }
+                            }
+                        },
+                        "fuel_consumption": {
+                            "type": "object",
+                            "description": "Fuel consumption from non-renewable and renewable sources",
+                            "properties": {
+                                "within_org": {
+                                    "type": "object",
+                                    "properties": {
+                                        "total": { "$ref": "#/$defs/metric_value" },
+                                        "by_type": {
+                                            "type": "array",
+                                            "description": "Breakdown by fuel type (diesel, gasoline/petrol, LPG, natural gas, etc.)",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "type": { "type": "string", "description": "e.g., diesel, gasoline, petrol, LPG, natural gas, propane" },
+                                                    "value": { "$ref": "#/$defs/metric_value" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "outside_org": {
+                                    "$ref": "#/$defs/metric_value",
+                                    "description": "Fuel consumed outside the organization"
+                                }
+                            }
+                        },
+                        "electricity_consumption": {
+                            "type": "object",
+                            "description": "Electricity, heating, cooling, and steam consumption",
+                            "properties": {
+                                "within_org": {
+                                    "type": "object",
+                                    "properties": {
+                                        "total": { "$ref": "#/$defs/metric_value" },
+                                        "by_type": {
+                                            "type": "array",
+                                            "description": "Breakdown by electricity source type",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "type": { "type": "string", "description": "e.g., grid, steam, heat, captive, solar, wind" },
+                                                    "value": { "$ref": "#/$defs/metric_value" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "outside_org": {
+                                    "$ref": "#/$defs/metric_value",
+                                    "description": "Electricity consumed outside the organization"
+                                }
+                            }
+                        },
+                        "renewable_share_pct": {
+                            "type": "number",
+                            "description": "Percentage of energy from renewable sources"
+                        },
+                        "energy_intensity": {
+                            "type": "object",
+                            "properties": {
+                                "value": {
+                                    "type": "number"
+                                },
+                                "unit": {
+                                    "type": "string"
+                                },
+                                "denominator": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "energy_reduction_initiatives": {
+                            "type": "string",
+                            "description": "Description of energy efficiency programs"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 302",
+                                "ESRS E1",
+                                "CDP CC"
+                            ]
+                        }
+                    }
+                },
+                "water": {
+                    "description": "Water withdrawal, consumption, discharge (GRI 303, ESRS E3, CDP Water)",
+                    "type": "object",
+                    "properties": {
+                        "total_withdrawal": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "total_consumption": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "total_discharge": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "withdrawal_by_source": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "source": {
+                                        "type": "string",
+                                        "description": "e.g., surface water, groundwater, municipal"
+                                    },
+                                    "value": {
+                                        "$ref": "#/$defs/metric_value"
+                                    }
+                                }
+                            }
+                        },
+                        "water_stress_areas": {
+                            "type": "boolean",
+                            "description": "Operations in water-stressed areas"
+                        },
+                        "water_recycled": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Total volume of water recycled/reclaimed"
+                        },
+                        "water_recycled_pct": {
+                            "type": "number"
+                        },
+                        "water_intensity": {
+                            "type": "object",
+                            "description": "Water consumption per unit of activity",
+                            "properties": {
+                                "value": { "type": "number" },
+                                "unit": { "type": "string", "description": "e.g., m3/employee, m3/M$ revenue, gallons/unit" },
+                                "denominator": { "type": "string", "description": "What the intensity is divided by" }
+                            }
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 303",
+                                "ESRS E3",
+                                "CDP Water"
+                            ]
+                        }
+                    }
+                },
+                "waste": {
+                    "description": "Waste generation and management (GRI 306, ESRS E5)",
+                    "type": "object",
+                    "properties": {
+                        "total_waste": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "hazardous_waste": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "non_hazardous_waste": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "waste_diverted_from_disposal": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "waste_to_landfill": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "recycling_rate_pct": {
+                            "type": "number"
+                        },
+                        "organic_waste": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Organic waste generated"
+                        },
+                        "food_waste": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Food waste generated"
+                        },
+                        "waste_by_type": {
+                            "type": "array",
+                            "description": "Breakdown of waste by type",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "waste_type": {
+                                        "type": "string",
+                                        "description": "e.g., organic, plastic, paper, glass, metal, e-waste"
+                                    },
+                                    "value": {
+                                        "$ref": "#/$defs/metric_value"
+                                    }
+                                }
+                            }
+                        },
+                        "circular_economy_notes": {
+                            "type": "string"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 306",
+                                "ESRS E5"
+                            ]
+                        }
+                    }
+                },
+                "air_emissions": {
+                    "description": "Non-GHG air pollutant emissions (GRI 305-7, ESRS E2)",
+                    "type": "object",
+                    "properties": {
+                        "by_type": {
+                            "type": "array",
+                            "description": "Breakdown by pollutant type",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "description": "e.g., NOx, SOx, VOC, particulate_matter, CO, H2S, ozone_depleting_substances"
+                                    },
+                                    "value": { "$ref": "#/$defs/metric_value" }
+                                }
+                            }
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": ["GRI 305-7", "ESRS E2"]
+                        }
+                    }
+                },
+                "biodiversity": {
+                    "description": "Biodiversity and land use (GRI 304, ESRS E4, TNFD)",
+                    "type": "object",
+                    "properties": {
+                        "operations_near_protected_areas": {
+                            "type": "boolean"
+                        },
+                        "land_use_change": {
+                            "type": "string"
+                        },
+                        "biodiversity_policy": {
+                            "type": "string"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 304",
+                                "ESRS E4",
+                                "TNFD"
+                            ]
+                        }
+                    }
+                },
+                "climate_risk": {
+                    "description": "Climate-related risks and opportunities (TCFD/ISSB core)",
+                    "type": "object",
+                    "properties": {
+                        "physical_risks": {
+                            "type": "string",
+                            "description": "Description of physical climate risks identified"
+                        },
+                        "transition_risks": {
+                            "type": "string",
+                            "description": "Description of transition risks (policy, tech, market)"
+                        },
+                        "climate_opportunities": {
+                            "type": "string",
+                            "description": "Climate-related opportunities identified"
+                        },
+                        "scenario_analysis": {
+                            "type": "boolean",
+                            "description": "Whether climate scenario analysis was conducted"
+                        },
+                        "scenario_details": {
+                            "type": "string",
+                            "description": "Scenarios used (e.g., 1.5°C, 2°C, 4°C)"
+                        },
+                        "internal_carbon_price": {
+                            "type": "object",
+                            "properties": {
+                                "value": {
+                                    "type": "number"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "description": "e.g., $/tCO2e"
+                                }
+                            }
+                        },
+                        "transition_plan": {
+                            "type": "string",
+                            "description": "Summary of climate transition plan"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "TCFD",
+                                "IFRS S2",
+                                "ESRS E1",
+                                "CDP CC"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "social": {
+            "description": "All social KPIs — workforce, health & safety, human rights, community",
+            "type": "object",
+            "properties": {
+                "workforce": {
+                    "description": "Employment data (GRI 401, 405, ESRS S1)",
+                    "type": "object",
+                    "properties": {
+                        "total_employees": {
+                            "type": "integer"
+                        },
+                        "total_employees_male": {
+                            "type": "integer"
+                        },
+                        "total_employees_female": {
+                            "type": "integer"
+                        },
+                        "permanent_employees": {
+                            "type": "integer"
+                        },
+                        "permanent_employees_male": {
+                            "type": "integer"
+                        },
+                        "permanent_employees_female": {
+                            "type": "integer"
+                        },
+                        "temporary_employees": {
+                            "type": "integer"
+                        },
+                        "temporary_employees_male": {
+                            "type": "integer"
+                        },
+                        "temporary_employees_female": {
+                            "type": "integer"
+                        },
+                        "full_time_employees": {
+                            "type": "integer",
+                            "description": "Total full-time employees"
+                        },
+                        "full_time_employees_male": {
+                            "type": "integer"
+                        },
+                        "full_time_employees_female": {
+                            "type": "integer"
+                        },
+                        "part_time_employees": {
+                            "type": "integer",
+                            "description": "Total part-time employees"
+                        },
+                        "part_time_employees_male": {
+                            "type": "integer"
+                        },
+                        "part_time_employees_female": {
+                            "type": "integer"
+                        },
+                        "contractors": {
+                            "type": "integer"
+                        },
+                        "new_hires": {
+                            "type": "integer"
+                        },
+                        "new_hires_male": {
+                            "type": "integer"
+                        },
+                        "new_hires_female": {
+                            "type": "integer"
+                        },
+                        "turnover_rate_pct": {
+                            "type": "number"
+                        },
+                        "turnover_voluntary_pct": {
+                            "type": "number"
+                        },
+                        "turnover_male_pct": {
+                            "type": "number",
+                            "description": "Turnover rate for male employees"
+                        },
+                        "turnover_female_pct": {
+                            "type": "number",
+                            "description": "Turnover rate for female employees"
+                        },
+                        "turnover_under_30_pct": {
+                            "type": "number",
+                            "description": "Turnover rate for employees under 30"
+                        },
+                        "turnover_30_50_pct": {
+                            "type": "number",
+                            "description": "Turnover rate for employees aged 30-50"
+                        },
+                        "turnover_over_50_pct": {
+                            "type": "number",
+                            "description": "Turnover rate for employees over 50"
+                        },
+                        "local_employees_pct": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Percentage of local employees out of total skilled employees"
+                        },
+                        "age_distribution": {
+                            "type": "object",
+                            "description": "Workforce age distribution breakdown",
+                            "properties": {
+                                "under_30": { "type": "number" },
+                                "under_30_male": { "type": "number" },
+                                "under_30_female": { "type": "number" },
+                                "between_30_50": { "type": "number" },
+                                "between_30_50_male": { "type": "number" },
+                                "between_30_50_female": { "type": "number" },
+                                "over_50": { "type": "number" },
+                                "over_50_male": { "type": "number" },
+                                "over_50_female": { "type": "number" }
+                            }
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 401",
+                                "ESRS S1"
+                            ]
+                        }
+                    }
+                },
+                "diversity_inclusion": {
+                    "description": "Diversity and equal opportunity (GRI 405, ESRS S1)",
+                    "type": "object",
+                    "properties": {
+                        "women_total_pct": {
+                            "type": "number",
+                            "description": "% women in total workforce"
+                        },
+                        "women_management_pct": {
+                            "type": "number",
+                            "description": "% women in management/leadership"
+                        },
+                        "women_board_pct": {
+                            "type": "number",
+                            "description": "% women on board of directors"
+                        },
+                        "gender_pay_gap_pct": {
+                            "type": "number",
+                            "description": "Gender pay gap percentage"
+                        },
+                        "age_distribution": {
+                            "type": "string",
+                            "description": "Workforce age distribution narrative or breakdown"
+                        },
+                        "diversity_policy": {
+                            "type": "string"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 405",
+                                "ESRS S1"
+                            ]
+                        }
+                    }
+                },
+                "health_safety": {
+                    "description": "Occupational health and safety (GRI 403, ESRS S1)",
+                    "type": "object",
+                    "properties": {
+                        "fatalities": {
+                            "type": "integer",
+                            "description": "Work-related fatalities"
+                        },
+                        "fatalities_contractors": {
+                            "type": "integer"
+                        },
+                        "ltifr": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Lost Time Injury Frequency Rate (per million hours worked)"
+                        },
+                        "trir": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Total Recordable Incident Rate"
+                        },
+                        "lost_days": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Total lost workdays due to injuries"
+                        },
+                        "high_consequence_injuries": {
+                            "type": "integer"
+                        },
+                        "other_occupational_injuries": {
+                            "type": "integer",
+                            "description": "Recordable injuries excluding fatalities and high-consequence"
+                        },
+                        "near_miss_incidents": {
+                            "type": "integer",
+                            "description": "Near-miss incidents reported"
+                        },
+                        "safety_training_hours": {
+                            "type": "number"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 403",
+                                "ESRS S1"
+                            ]
+                        }
+                    }
+                },
+                "training_development": {
+                    "description": "Training and education (GRI 404, ESRS S1)",
+                    "type": "object",
+                    "properties": {
+                        "total_training_hours": {
+                            "type": "number",
+                            "description": "Total training hours imparted across the workforce"
+                        },
+                        "avg_training_hours": {
+                            "type": "number",
+                            "description": "Average training hours per employee"
+                        },
+                        "training_hours_male": {
+                            "type": "number",
+                            "description": "Total or average training hours for male employees"
+                        },
+                        "training_hours_female": {
+                            "type": "number",
+                            "description": "Total or average training hours for female employees"
+                        },
+                        "training_hours_by_gender": {
+                            "type": "object",
+                            "properties": {
+                                "male": {
+                                    "type": "number"
+                                },
+                                "female": {
+                                    "type": "number"
+                                }
+                            }
+                        },
+                        "training_investment": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "training_investment_per_employee": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "Training spend per employee"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 404",
+                                "ESRS S1"
+                            ]
+                        }
+                    }
+                },
+                "parental_leave": {
+                    "description": "Parental leave data by gender (GRI 401-3, ESRS S1)",
+                    "type": "object",
+                    "properties": {
+                        "entitled_male": { "type": "integer" },
+                        "entitled_female": { "type": "integer" },
+                        "took_leave_male": { "type": "integer" },
+                        "took_leave_female": { "type": "integer" },
+                        "returned_after_leave_male": { "type": "integer" },
+                        "returned_after_leave_female": { "type": "integer" },
+                        "return_rate_male_pct": { "type": "number" },
+                        "return_rate_female_pct": { "type": "number" },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": ["GRI 401-3", "ESRS S1"]
+                        }
+                    }
+                },
+                "performance_reviews": {
+                    "description": "Performance and career development reviews (GRI 404-3)",
+                    "type": "object",
+                    "properties": {
+                        "total_reviewed_pct": {
+                            "type": "number",
+                            "description": "% of employees receiving regular performance reviews"
+                        },
+                        "reviewed_male_pct": { "type": "number" },
+                        "reviewed_female_pct": { "type": "number" },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "default": ["GRI 404-3", "ESRS S1"]
+                        }
+                    }
+                },
+                "human_rights": {
+                    "description": "Human rights due diligence (GRI 408/409/411, ESRS S1/S2, CSDDD)",
+                    "type": "object",
+                    "properties": {
+                        "human_rights_policy": {
+                            "type": "boolean"
+                        },
+                        "due_diligence_process": {
+                            "type": "string"
+                        },
+                        "child_labor_risk": {
+                            "type": "string"
+                        },
+                        "forced_labor_risk": {
+                            "type": "string"
+                        },
+                        "grievance_mechanisms": {
+                            "type": "boolean"
+                        },
+                        "incidents_reported": {
+                            "type": "integer"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 408",
+                                "GRI 409",
+                                "ESRS S1",
+                                "ESRS S2"
+                            ]
+                        }
+                    }
+                },
+                "whistleblowing": {
+                    "description": "Whistleblowing / ethics hotline data (GRI 2-26, ESRS G1)",
+                    "type": "object",
+                    "properties": {
+                        "mechanism_exists": {
+                            "type": "boolean"
+                        },
+                        "cases_reported": {
+                            "$ref": "#/$defs/metric_field"
+                        },
+                        "cases_resolved": {
+                            "$ref": "#/$defs/metric_field"
+                        },
+                        "cases_substantiated": {
+                            "$ref": "#/$defs/metric_field"
+                        }
+                    }
+                },
+                "community": {
+                    "description": "Community impact and engagement (GRI 413)",
+                    "type": "object",
+                    "properties": {
+                        "community_investment": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "community_programs": {
+                            "type": "string"
+                        },
+                        "local_hiring_pct": {
+                            "type": "number"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 413",
+                                "ESRS S3"
+                            ]
+                        }
+                    }
+                },
+                "supply_chain": {
+                    "description": "Supply chain social responsibility (GRI 308/414, ESRS S2)",
+                    "type": "object",
+                    "properties": {
+                        "suppliers_screened_pct": {
+                            "type": "number",
+                            "description": "% of suppliers screened on social criteria"
+                        },
+                        "supplier_code_of_conduct": {
+                            "type": "boolean"
+                        },
+                        "supplier_audits": {
+                            "type": "integer"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 308",
+                                "GRI 414",
+                                "ESRS S2"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "governance": {
+            "description": "Governance KPIs — board, ethics, risk management",
+            "type": "object",
+            "properties": {
+                "board_composition": {
+                    "description": "Board structure and diversity (GRI 405, ESRS G1)",
+                    "type": "object",
+                    "properties": {
+                        "board_size": {
+                            "type": "integer"
+                        },
+                        "independent_directors": {
+                            "type": "integer"
+                        },
+                        "independent_pct": {
+                            "type": "number"
+                        },
+                        "women_on_board": {
+                            "type": "integer"
+                        },
+                        "board_diversity_policy": {
+                            "type": "boolean"
+                        },
+                        "esg_committee": {
+                            "type": "boolean",
+                            "description": "Dedicated ESG/sustainability board committee"
+                        },
+                        "esg_linked_compensation": {
+                            "type": "boolean",
+                            "description": "ESG metrics in executive compensation"
+                        },
+                        "esg_compensation_details": {
+                            "type": "string",
+                            "description": "Description of ESG-linked KPIs for executive pay"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 405",
+                                "ESRS G1",
+                                "TCFD Governance"
+                            ]
+                        }
+                    }
+                },
+                "ethics_compliance": {
+                    "description": "Anti-corruption and business ethics (GRI 205/206, ESRS G1)",
+                    "type": "object",
+                    "properties": {
+                        "anti_corruption_policy": {
+                            "type": "boolean"
+                        },
+                        "corruption_training_pct": {
+                            "type": "number",
+                            "description": "% employees trained on anti-corruption"
+                        },
+                        "confirmed_corruption_incidents": {
+                            "type": "integer"
+                        },
+                        "ethics_training_employees": {
+                            "type": "integer",
+                            "description": "Number of employees who completed ethics/integrity training"
+                        },
+                        "whistleblower_mechanism": {
+                            "type": "boolean"
+                        },
+                        "political_contributions": {
+                            "$ref": "#/$defs/metric_value"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 205",
+                                "GRI 206",
+                                "ESRS G1"
+                            ]
+                        }
+                    }
+                },
+                "data_privacy": {
+                    "description": "Data privacy and security (GRI 418)",
+                    "type": "object",
+                    "properties": {
+                        "data_breaches": {
+                            "type": "integer"
+                        },
+                        "customers_affected": {
+                            "type": "integer"
+                        },
+                        "privacy_policy": {
+                            "type": "boolean"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 418",
+                                "SASB"
+                            ]
+                        }
+                    }
+                },
+                "tax_transparency": {
+                    "description": "Tax practices (GRI 207)",
+                    "type": "object",
+                    "properties": {
+                        "tax_strategy_published": {
+                            "type": "boolean"
+                        },
+                        "country_by_country_reporting": {
+                            "type": "boolean"
+                        },
+                        "framework_refs": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "GRI 207"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "supply_chain": {
+            "description": "Supply chain sustainability metrics — procurement practices, local sourcing, sustainable packaging (GRI 204, 308, 414)",
+            "type": "object",
+            "properties": {
+                "local_procurement": {
+                    "type": "object",
+                    "description": "Local sourcing and procurement metrics",
+                    "properties": {
+                        "local_spend_pct": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "% of total procurement spend on local suppliers"
+                        },
+                        "local_suppliers_pct": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "% of local suppliers out of total suppliers"
+                        },
+                        "icv_score": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "In-Country Value score (UAE-specific)"
+                        }
+                    }
+                },
+                "sustainable_packaging": {
+                    "type": "object",
+                    "description": "Sustainable packaging metrics",
+                    "properties": {
+                        "sustainable_packaging_spend_pct": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "% of packaging spend on sustainable materials"
+                        },
+                        "certifications": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "e.g., RSPO, FSC, Rainforest Alliance"
+                        },
+                        "certified_materials_pct": {
+                            "$ref": "#/$defs/metric_value",
+                            "description": "% of materials that are certified sustainable"
+                        }
+                    }
+                },
+                "supplier_engagement": {
+                    "type": "object",
+                    "description": "Supplier screening and engagement",
+                    "properties": {
+                        "total_suppliers": {
+                            "type": "integer"
+                        },
+                        "suppliers_screened_pct": {
+                            "type": "number",
+                            "description": "% of suppliers screened on ESG criteria"
+                        },
+                        "supplier_code_of_conduct": {
+                            "type": "boolean"
+                        },
+                        "supplier_code_adherence_pct": {
+                            "type": "number",
+                            "description": "% of suppliers adhering to code of conduct"
+                        },
+                        "supplier_audits": {
+                            "type": "integer"
+                        },
+                        "supplier_risk_assessments": {
+                            "type": "boolean"
+                        }
+                    }
+                },
+                "framework_refs": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "default": ["GRI 204", "GRI 308", "GRI 414", "ESRS S2"]
+                }
+            }
+        },
+        "extraction_metadata": {
+            "description": "Metadata about how the data was extracted (for audit trail)",
+            "type": "object",
+            "properties": {
+                "extraction_date": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "extraction_model": {
+                    "type": "string",
+                    "description": "LLM model used (e.g., claude-sonnet-4-20250514)"
+                },
+                "extraction_version": {
+                    "type": "string",
+                    "description": "Pipeline version"
+                },
+                "source_pdf": {
+                    "type": "string",
+                    "description": "Original PDF filename"
+                },
+                "source_pages": {
+                    "type": "integer",
+                    "description": "Total pages in source PDF"
+                },
+                "confidence_scores": {
+                    "type": "object",
+                    "description": "Per-field confidence (0.0-1.0) from the LLM",
+                    "additionalProperties": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    }
+                },
+                "fields_extracted": {
+                    "type": "integer",
+                    "description": "Total fields successfully extracted"
+                },
+                "fields_missing": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Fields expected but not found"
+                },
+                "human_reviewed": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "reviewer_notes": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "$defs": {
+        "metric_value": {
+            "description": "A quantitative metric with value, unit, and optional year-over-year data",
+            "type": "object",
+            "properties": {
+                "value": {
+                    "type": "number",
+                    "description": "The numeric value"
+                },
+                "unit": {
+                    "type": "string",
+                    "description": "Unit of measurement (e.g., tCO2e, MWh, ML, tonnes, %)"
+                },
+                "year": {
+                    "type": "integer",
+                    "description": "Year this value corresponds to"
+                },
+                "prior_year_value": {
+                    "type": "number",
+                    "description": "Previous year's value (for trend)"
+                },
+                "prior_year": {
+                    "type": "integer"
+                },
+                "base_year_value": {
+                    "type": "number",
+                    "description": "Base year value (for target tracking)"
+                },
+                "base_year": {
+                    "type": "integer"
+                },
+                "page_reference": {
+                    "type": "integer",
+                    "description": "Page in source PDF where value was found"
+                },
+                "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "LLM confidence in extraction accuracy"
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Any caveats, methodology notes, or boundary info"
+                }
+            },
+            "required": [
+                "value",
+                "unit"
+            ]
+        }
+    }
+}

@@ -18,6 +18,33 @@ build/
 data/raw/
 data/processed/
 
+# Raw source PDFs (reproducible — fetched from source)
+data/reports/**/*.pdf
+
+# Generated DB dumps / samples
+data/all_db_records.csv
+data/turnover_and_website_*.csv
+data/row.json
+
+# SQLite ingestion DB (generated)
+ingestion.db
+*.db-journal
+
+# Pipeline output (generated — keep directory structure via .gitkeep)
+parsed_output/*
+!parsed_output/.gitkeep
+extracted_output/*
+!extracted_output/.gitkeep
+validated_output/*
+!validated_output/.gitkeep
+db_ready_output/*
+!db_ready_output/.gitkeep
+
+# Ad-hoc extractor/test output dirs
+extracted_output_v*/
+test_merge_output/
+test_v*/
+
 # Logs
 logs/
 
